@@ -4,18 +4,14 @@ from tqdm import tqdm
 
 def verificar_subdominio(subdominio):
     try:
-        # Realiza una consulta DNS tipo A
         respuestas = dns.resolver.resolve(subdominio, 'A')
         if respuestas:
             return subdominio
     except dns.resolver.NXDOMAIN:
-        # El subdominio no existe
         return None
     except dns.resolver.NoAnswer:
-        # No hay respuesta para el tipo de registro solicitado
         return None
     except dns.resolver.Timeout:
-        # Tiempo de espera agotado
         return None
     except Exception as e:
         print(f"Error al verificar {subdominio}: {e}")
@@ -32,7 +28,7 @@ def obtener_subdominios(dominio, wordlist):
         print(f"El archivo {wordlist} no se encontró.")
         return subdominios_encontrados
 
-    with ThreadPoolExecutor(max_workers=50) as executor:  # Ajusta el número de hilos según tus necesidades
+    with ThreadPoolExecutor(max_workers=50) as executor: 
         futures = {executor.submit(verificar_subdominio, f"{sub}.{dominio}"): sub for sub in subdominios}
         for future in tqdm(as_completed(futures), total=len(futures), desc="Verificando subdominios"):
             resultado = future.result()
