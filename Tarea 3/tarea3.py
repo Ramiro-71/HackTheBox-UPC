@@ -1,12 +1,21 @@
-import subprocess
+import dns.resolver
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 def verificar_subdominio(subdominio):
     try:
-        resultado = subprocess.run(['dig', '+short', subdominio], capture_output=True, text=True)
-        if resultado.stdout.strip():  
+        # Realiza una consulta DNS tipo A
+        respuestas = dns.resolver.resolve(subdominio, 'A')
+        if respuestas:
             return subdominio
+    except dns.resolver.NXDOMAIN:
+        # El subdominio no existe
+        return None
+    except dns.resolver.NoAnswer:
+        # No hay respuesta para el tipo de registro solicitado
+        return None
+    except dns.resolver.Timeout:
+        # Tiempo de espera agotado
         return None
     except Exception as e:
         print(f"Error al verificar {subdominio}: {e}")
@@ -16,10 +25,14 @@ def obtener_subdominios(dominio, wordlist):
     subdominios_encontrados = []
     subdominios = []
 
-    with open(wordlist, 'r') as f:
-        subdominios = f.read().splitlines()
+    try:
+        with open(wordlist, 'r') as f:
+            subdominios = f.read().splitlines()
+    except FileNotFoundError:
+        print(f"El archivo {wordlist} no se encontró.")
+        return subdominios_encontrados
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:  # Ajusta el número de hilos según tus necesidades
         futures = {executor.submit(verificar_subdominio, f"{sub}.{dominio}"): sub for sub in subdominios}
         for future in tqdm(as_completed(futures), total=len(futures), desc="Verificando subdominios"):
             resultado = future.result()
@@ -29,7 +42,7 @@ def obtener_subdominios(dominio, wordlist):
     return subdominios_encontrados
 
 if __name__ == '__main__':
-    dominio = input("Introduce un dominio (ejemplo: google.com): ")
+    dominio = input("Introduce un dominio: ").strip()
     subdominios = obtener_subdominios(dominio, 'subdomains.txt')
     
     if subdominios:
@@ -38,4 +51,3 @@ if __name__ == '__main__':
             print(sub)
     else:
         print("No se encontraron subdominios.")
-
